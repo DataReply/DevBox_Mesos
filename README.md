@@ -1,5 +1,8 @@
-The Foundry
+ DevBox_Mesos 
+
 =====================
+
+#This is not ready dont use it yet. Based on some stollen things
 
 A vagrant configuration to set up a cluster of mesos master, slaves and zookeepers through ansible. It will also set up a seperate Kafka cluster that piggybacks off Zookeeper from the Mesos cluster.
 
@@ -136,4 +139,3 @@ hdfs dfs -ls /user/foo/out
 hdfs dfs -cat /user/foo/out/part*
 ```
 
-# DevBox_Mesos 
