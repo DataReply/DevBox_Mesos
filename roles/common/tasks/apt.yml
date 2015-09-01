@@ -1,0 +1,10 @@
+---
+- name: create mesosphere repo
+  apt_repository: repo='deb http://repos.mesosphere.io/ubuntu trusty main' state=present
+
+- name: Update apt cache
+  apt: update_cache=yes cache_valid_time=3600
+
+- name: Apt install required system packages.
+  apt: pkg={{item}} state=installed force=yes
+  with_items: apt_system_packages

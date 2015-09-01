@@ -1,0 +1,27 @@
+---
+
+- name: create user group
+  group: name={{item}} state=present
+  with_items:
+  - spark
+
+- name: create spark user
+  user: name=spark groups=spark createhome=yes state=present
+
+- name: create .ssh directory for hdfs user
+  file: path=/home/spark/.ssh state=directory owner=spark group=spark mode=0700
+
+#- include: git-build.yml
+- include: prebuilt.yml
+
+- name: copy spark configuration files
+  template: src={{ item }}.j2 dest={{ spark_home }}/conf/{{ item }} owner=spark group=spark mode=0644
+  with_items:
+  - fairscheduler.xml
+  - log4j.properties
+  - metrics.properties
+  - slaves
+  - spark-env.sh
+  tags:
+  - cdh5-spark-base
+  - cdh5-spark-base-conf

@@ -1,0 +1,158 @@
+---
+- hosts: all
+  sudo: yes
+
+  tasks:
+    - name: Set global cluster variable facts
+      set_fact:
+        zk_endpoint: "zk://{{ groups['mesos-masters'] | join(':2181,') }}:2181"
+
+    - name: Set global mesos variable facts
+      set_fact:
+        mesos_zk: "{{ zk_endpoint }}/mesos"
+
+    - name: Set global marathon variable facts
+      set_fact:
+        marathon_host_servers: "{{ groups['mesos-masters'] }}"
+        marathon_zk: "{{ zk_endpoint }}/marathon"
+
+  roles:
+    - common
+
+- hosts: cdh5-all
+  gather_facts: false
+  sudo: yes
+  vars:
+    - zookeeper_servers: "{{ groups['mesos-masters'] }}"
+    - zk_servers_noproto: "{{ groups['mesos-masters'] | join(':2181,') }}:2181"
+    - quorum_size: "{{ ((groups['mesos-masters']|length) // 2) + 1 }}"
+  roles:
+  - { role: cdh5-base }
+
+# Mesos masters
+- hosts: mesos-masters
+  gather_facts: false
+  sudo: yes
+
+  vars:
+    - zookeeper_servers: "{{ groups['mesos-masters'] }}"
+    - mesos_quorum: "{{ ((groups['mesos-masters']|length) // 2) + 1 }}"
+
+  roles:
+    - { role: zookeeper, tags: [ 'zookeeper' ] }
+    - { role: mesosphere, tags: [ 'mesos' ], mesos_mode: master }
+    - { role: marathon, tags: [ 'marathon'] }
+    #- { role: chronos, tags: [ 'chronos'] }
+
+# Mesos slaves
+- hosts: mesos-slaves
+  gather_facts: false
+  sudo: yes
+
+  vars:
+    - mesos_options_slave:
+        containerizers: "docker,mesos"
+        executor_registration_timeout: 20mins
+    - zk_servers_noproto: "{{ groups['mesos-masters'] | join(':2181,') }}:2181"
+    - marathon_masters: "http://{{ groups['mesos-masters'] | join(':8080,') }}:8080"
+    - discovery_method: default
+
+  roles:
+    - { role: mesosphere, tags: [ 'mesos' ], mesos_mode: slave }
+    - { role: marathon, tags: [ 'marathon'], marathon_run_mode: bridge }
+    # - { role: haproxy, tags: ['haproxy'] }
+    - { role: hadiscovery, tags: ['hadiscovery'], when: "discovery_method == 'hadiscovery'"}
+    - { role: bamboo-haproxy, tags: [ 'bamboo'], when: "discovery_method == 'bamboo'" }
+
+# Kafka
+- hosts: kafka-nodes
+  gather_facts: false
+  sudo: yes
+
+  vars:
+    - zk_servers_noproto: "{{ groups['mesos-masters'] | join(':2181,') }}:2181"
+    - K_VERSION: 0.8.1.1
+    - K_BUILD: kafka_2.9.2-{{K_VERSION}}
+    - K_DATA_DIR: /var/data/kafka
+    - Z_VERSION: 3.4.6
+    - Z_BUILD: zookeeper-{{Z_VERSION}}
+    - Z_DATA_DIR: /var/data/zookeeper
+
+  roles:
+    - { role: kafka, tags: [ 'kafka'], broker_id: 1 }
+
+
+- hosts: cdh5-journalnode
+  gather_facts: false
+  sudo: yes
+  roles:
+  - { role: cdh5-journalnode }
+
+- hosts: cdh5-namenode-primary
+  gather_facts: false
+  sudo: yes
+  roles: 
+  - cdh5-namenode-primary
+
+- hosts: cdh5-namenode-backup
+  sudo: yes
+  roles:
+  - cdh5-namenode-backup
+
+- hosts: cdh5-namenodes
+  sudo: yes
+  tasks:
+  - name: start zkfc for namenodes
+    service: name=hadoop-hdfs-zkfc state=started
+    tags:
+    - cdh5-namenode-primary
+    - cdh5-namenode-primary-zkfc
+
+- hosts: cdh5-httpfs
+  sudo: yes
+  roles:
+  - cdh5-httpfs
+
+- hosts: cdh5-datanodes
+  gather_facts: false
+  sudo: yes
+  roles:
+  - { role: cdh5-slave }
+
+- hosts: cdh5-jobtracker
+  sudo: yes
+  roles:
+  - cdh5-jobtracker
+
+- hosts: cdh5-namenode-primary
+  sudo: yes
+  tasks:
+  - name: create tmp directory
+    shell: creates={{ item }} sudo -u hdfs hadoop fs -mkdir -p /tmp; sudo -u hdfs hadoop fs -chmod -R 1777 /tmp && touch {{ item }}
+    with_items:
+    - /var/hadoop/.status/tmp_dir.created
+    tags:
+    - cdh5-namenode-primary
+    - cdh5-namenode-primary-tmpdir
+
+# - hosts: cdh5-namenode-primary
+#   sudo: yes
+#   tasks:
+#   - name: create tmp directory
+#     shell: creates={{ item.dest }} sudo -u hdfs hadoop fs {{ item.command }} && touch {{ item.dest }}
+#     with_items:
+#     - { command: "-mkdir -p /var/lib/hadoop-hdfs/cache/mapred/mapred && sudo -u hdfs hadoop fs -chmod -R 1777 /var/lib/hadoop-hdfs/cache/mapred/mapred", dest:"/var/hadoop/.status/mapred.created" }
+#     - { command: "-chown -R mapred /var/lib/hadoop-hdfs/cache/mapred", dest:"/var/hadoop/.status/mapred-cache.created" }
+#     - { command: "-mkdir /tmp/mapred/system && sudo -u hdfs hadoop fs -chown mapred:hadoop /tmp/mapred/system", dest:"/var/hadoop/.status/mapred-system.created"}
+#     tags:
+#     - cdh5-namenode-primary
+
+- hosts: spark-masters
+  sudo: yes
+  roles:
+  - { role: spark-master }
+
+- hosts: cdh5-namenode-primary
+  sudo: yes
+  roles: 
+    - hadoop-mesos

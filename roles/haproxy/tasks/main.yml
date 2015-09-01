@@ -1,0 +1,13 @@
+---
+- name: Add haproxy apt repo
+  apt_repository: repo='ppa:vbernat/haproxy-1.5' update_cache=yes state=present validate_certs=no
+
+- name: Install the required packages
+  apt: pkg=haproxy state=installed
+
+- name: Enable HAProxy
+  template: src=haproxy_enable.j2 dest=/etc/default/haproxy
+  notify: Restart haproxy
+
+- name: Make sure haproxy is started and enabled
+  service: name=haproxy state=started enabled=yes

@@ -1,0 +1,127 @@
+---
+- name: create cdh5 repo
+  apt_repository: repo='{{ item }}' state=present
+  with_items:
+  - 'deb [arch=amd64] http://archive.cloudera.com/cdh5/ubuntu/trusty/amd64/cdh trusty-cdh5 contrib'
+  - 'deb-src http://archive.cloudera.com/cdh5/ubuntu/trusty/amd64/cdh trusty-cdh5 contrib'
+  - 'deb [arch=amd64] http://archive.cloudera.com/gplextras5/ubuntu/trusty/amd64/gplextras trusty-gplextras5 contrib'
+  - 'deb-src http://archive.cloudera.com/gplextras5/ubuntu/trusty/amd64/gplextras trusty-gplextras5 contrib'
+
+# - name: add cloudera key
+#   apt_key: keyserver=http://archive.cloudera.com/cdh5/ubuntu/trusty/amd64/cdh/archive.key state=present id=47304010
+
+# - name: install needed rpms for hadoop
+#   apt: name={{ item }} state=present force=yes
+#   with_items:
+#   - gcc
+#   - gcc-c++
+#   - make
+#   tags:
+#   - cdh5-base
+
+- name: create the hosts file for all machines
+  template: src=hosts.j2 dest=/etc/hosts owner=root group=root mode=0644
+  tags:
+  - cdh5-base
+  - cdh5-base-hosts
+
+- name: install hadoop base pkgs
+  apt: name={{ item }}={{ version['hadoop'] }} state=present force=yes
+  with_items:
+  - hadoop
+  - hadoop-mapreduce
+  - hadoop-hdfs
+  - hadoop-0.20-mapreduce
+  tags:
+  - cdh5-base
+
+- name: install hadoop lzo pkgs
+  apt: name={{ item }}={{ version['lzo'] }} state=present force=yes
+  with_items:
+  - hadoop-lzo
+  tags:
+  - cdh5-base
+
+- name: create all needed hadoop directories
+  file: path={{ item }} state=directory owner=root group=root mode=0755
+  with_items:
+  - /var/hadoop
+  - /var/hadoop/data
+  - /var/hadoop/.status
+  - /root/deploy
+  - /root/deploy/hadoop
+  tags:
+  - cdh5-base
+
+- name: Apt install required system packages.
+  apt: pkg={{item}} state=installed
+  with_items:
+    - openjdk-7-jdk
+
+- name: create java env profile
+  copy: src=java.sh dest=/etc/profile.d/java.sh owner=root group=root mode=0644
+  register: java_env_profile
+  tags:
+  - cdh5-base
+  - cdh5-jdk
+
+- name: create /etc/hadoop/conf.{{ nameservice_id }}
+  file: path=/etc/hadoop/conf.{{ nameservice_id }} state=directory owner=root group=root mode=0755
+  register: create_hadoop_conf
+  tags:
+  - cdh5-base
+  - cdh5-base-conf
+
+- name: create alternatives for hadoop-conf
+  shell: update-alternatives --install /etc/hadoop/conf hadoop-conf {{ item }} 50
+  with_items:
+  - /etc/hadoop/conf.{{ nameservice_id }}
+  when: create_hadoop_conf|changed
+  tags:
+  - cdh5-base
+  - cdh5-base-conf
+
+- name: create alternatives for hadoop-conf
+  shell: update-alternatives --set hadoop-conf {{ item }}
+  with_items:
+  - /etc/hadoop/conf.{{ nameservice_id }}
+  when: create_hadoop_conf|changed
+  tags:
+  - cdh5-base
+  - cdh5-base-conf
+
+- name: install zookeeper base pkgs
+  apt: name={{ item }}={{ version['zookeeper'] }} state=present force=yes
+  with_items:
+  - zookeeper
+  tags:
+  - cdh5-base
+  - cdh5-zookeeper
+
+- name: create zookeeper cfgs
+  template: src=zoo.cfg.j2 dest=/etc/zookeeper/conf/zoo.cfg owner=zookeeper group=zookeeper mode=0644
+  tags:
+  - cdh5-base
+  - cdh5-zookeeper
+
+- name: copy the hadoop configuration files
+  template: src=hadoop/{{ item }}.j2 dest=/etc/hadoop/conf.{{ nameservice_id }}/{{ item }} owner=hdfs group=hadoop mode=0664
+  with_items:
+  - core-site.xml
+  - hdfs-site.xml
+  - mapred-site.xml
+  - slaves
+  #- capacity-scheduler.xml
+  #- configuration.xsl
+  #- container-executor.cfg
+  - hadoop-metrics2.properties
+  - hadoop-metrics.properties
+  - hadoop-policy.xml
+  - log4j.properties
+  #- mapred-queues.xml.template
+  #- ssl-client.xml.example
+  #- ssl-server.xml.example
+  register: copy_hadoop_conf
+  tags:
+  - cdh5-base
+  - cdh5-base-conf

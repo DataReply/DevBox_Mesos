@@ -1,0 +1,4 @@
+---
+
+- name: Restart hadiscovery
+  service: name=hadiscovery state=restarted enabled=yes

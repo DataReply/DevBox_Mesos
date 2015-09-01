@@ -1,0 +1,15 @@
+---
+
+- name: Download spark
+  get_url: url={{ spark_download_url }} dest={{ spark_home }}.tgz
+
+# - name: untar spark
+#   unarchive: src={{ spark_home }}.tgz dest={{ spark_home }} creates={{ spark_home }}
+
+- name: untar and rename spark
+  shell: sudo tar -xvf {{spark_home}}.tgz -C /home/spark/ && mv /home/spark/{{spark_build}} {{spark_home}} creates={{spark_home}}
+
+- name: put spark tarball in hdfs
+  shell: hadoop fs -put {{ spark_home }}.tgz /tmp && touch {{item}} creates={{item}}
+  with_items:
+  - /var/hadoop/.status/spark.created

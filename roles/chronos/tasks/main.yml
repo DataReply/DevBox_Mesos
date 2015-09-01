@@ -1,0 +1,14 @@
+---
+
+- name: Apt install chronos
+  apt: pkg={{item}} state=installed force=yes update_cache=yes
+  with_items:
+    - chronos
+
+- name: copy the hadoop configuration files
+  template: src={{ item }}.j2 dest=/etc/chronos/conf/{{ item }} mode=0664
+  with_items:
+  - http_port
+
+- name: Start chronos
+  service: name=chronos state=started enabled=yes

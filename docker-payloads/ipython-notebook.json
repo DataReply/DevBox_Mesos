@@ -1,0 +1,18 @@
+{
+  "container": {
+    "type": "DOCKER",
+    "docker": {
+      "image": "ipython/notebook",
+      "network": "BRIDGE",
+      "portMappings": [
+      { "containerPort": 8888 , "hostPort": 0, "protocol": "tcp"}
+      ]
+    }
+  },
+  "id": "ipython-notebook",
+  "instances": "1",
+  "cpus": "1",
+  "mem": "256",
+  "uris": [],
+  "cmd": "while sleep 10; do date -u +%T; done"
+}

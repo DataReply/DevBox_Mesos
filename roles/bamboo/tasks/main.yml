@@ -1,0 +1,37 @@
+---
+- name: Install the required packages
+  apt: pkg={{item}} state=installed
+  with_items:
+    - git
+    - golang
+
+- name: Create bamboo binary directory
+  file: state=directory path={{bamboo_bin_folder}}
+
+- name: Clone bamboo repo
+  git: repo=https://github.com/QubitProducts/bamboo
+       dest={{bamboo_bin_folder}}
+       version={{bamboo_version}}
+
+- name: Install HAProxy configuration template
+  copy: src=../files/haproxy.cfg.tpl dest=/etc/haproxy/haproxy.cfg.tpl
+  notify: Restart bamboo
+
+- Build bamboo
+  command: go build bamboo.go creates={{hadiscovery_bin_folder}}/bin/mesos_service_discovery
+  notify: Restart bamboo
+  args:
+    chdir: "{{ bamboo_bin_folder }}"
+
+- name: Build bamboo binary
+  command: ./build.sh creates={{hadiscovery_bin_folder}}/bin/mesos_service_discovery
+  notify: Restart hadiscovery
+  args:
+    chdir: "{{bamboo_bin_folder}}"
+
+- name: hadiscovery upstart script
+  template: src=hadiscovery.conf.j2 dest=/etc/init/hadiscovery.conf
+  notify: Restart hadiscovery
+
+- name: Restart hadiscovery
+  service: name=hadiscovery state=started enabled=yes

@@ -1,0 +1,8 @@
+---
+
+- name: install mesos pkgs
+  apt: name={{ item }} state=present force=yes
+  with_items:
+  - marathon={{ marathon_apt_version }}
+  tags:
+  - marathon

@@ -1,0 +1,73 @@
+---
+# - name: Build Kafka image
+#   docker: 
+#   	-image: "wurstmeister/kafka:0.8.1.1-1" 
+#   	-name: "kafka" 
+#   	-env: 
+#   		-ZK_PORT_2181_TCP_ADDR: {{ zk_servers_noproto }}
+#   		-KAFKA_ADVERTISED_HOST_NAME: {{inventory_hostname.value}}
+#   		-
+#   	-ports: "9092:9092"
+#   	-volumes: "/var/run/docker.sock:/var/run/docker.sock,/mnt/apps/kafka8/data:/data,/mnt/apps/kafka8/logs:/logs"
+#   tags:
+#     - docker
+#     - docker_build
+
+# - name: Build Kafka image
+#   docker: 
+#   	-image: "relateiq/kafka" 
+#   	-name: "kafka" 
+#   	-env: 
+#   		-EXPOSED_HOSTNAME: {{inventory_hostname.value}}
+#   		-EXPOSED_PORT: 9092
+#   		-BROKER_ID: {{ broker_id }}
+#   		-CHROOT: "/v0_8_1_1"
+#   		-ZOOKEEPER_PORT_2181_TCP_ADDR:
+#   	-ports: "9092:9092,7203:7203"
+#   	-volumes: "/mnt/apps/kafka8/data:/data,/mnt/apps/kafka8/logs:/logs"
+#   tags:
+#   	- kafka
+#     - docker
+#     - docker_build
+- name: update all packages to the latest version
+  apt: upgrade=dist
+
+- name: install base packages
+  apt: name={{ item }} state=latest update_cache=yes cache_valid_time=3600
+  with_items:
+    - vim
+    - openjdk-7-jre-headless
+
+- name: create group "kafka"
+  group: name=kafka state=present
+
+- name: create user "kafka"
+  user: name=kafka group=kafka 
+
+- name: download the kafka tarball
+  get_url: url=http://www.trieuvan.com/apache/kafka/{{K_VERSION}}/{{K_BUILD}}.tgz dest=/tmp/{{K_BUILD}}.tgz mode=0644 owner=kafka group=kafka
+
+- name: untar the kafka tarball
+  sudo_user: kafka
+  unarchive: src=/tmp/{{K_BUILD}}.tgz dest=/home/kafka/ copy=no
+
+- name: symlink kafka dir to "current"
+  file: src=/home/kafka/{{K_BUILD}} dest=/home/kafka/current owner=kafka group=kafka state=link
+
+- name: make sure kafka data directory exists
+  file: path={{K_DATA_DIR}} state=directory mode=0755 owner=kafka group=kafka
+
+- name: template kafka config
+  template: src=server.properties.j2 dest=/home/kafka/current/config/server.properties force=yes mode=0644 owner=kafka group=kafka
+
+- name: copy the kafka init.d script
+  copy: src=files/initd-kafka dest=/etc/init.d/kafka mode=0755 force=yes
+
+- name: start kafka service
+  service: name=kafka state=restarted enabled=yes
+
+- name: wait for kafka to come up
+  wait_for: host={{inventory_hostname}} port=9092
+
+- name: create "test" topic
+  command: /home/kafka/current/bin/kafka-topics.sh --create --zookeeper {{ zk_servers_noproto }} --replication-factor 1 --partitions 1 --topic test

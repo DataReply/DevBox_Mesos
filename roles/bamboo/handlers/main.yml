@@ -1,0 +1,4 @@
+---
+
+- name: Restart bamboo
+  service: name=bamboo state=restarted enabled=yes

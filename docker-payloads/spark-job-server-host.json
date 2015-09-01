@@ -1,0 +1,17 @@
+{
+    "id": "/spark-jobserver",
+    "instances": 1,
+    "cpus": 0.25,
+    "mem": 512,
+    "env": {
+        "MESOS_MASTER": "zk://100.0.10.11:2181/mesos"
+    },
+    "container": {
+        "type": "DOCKER",
+        "docker": {
+            "image": "theclaymethod/spark-jobserver-mesos",
+            "network": "HOST"
+        }
+    },
+    "ports" : [8090]
+}

@@ -1,0 +1,74 @@
+---
+
+- name: Clone mesos-hadoop repo
+  git: 
+    repo: https://github.com/mesos/hadoop
+    dest: /opt/src/mesos-hadoop/
+    version: master
+
+- name: Install the required packages
+  apt: pkg=maven state=installed force=yes
+
+- name: package mesos-hadoop creates=/opt/src/mesos-hadoop/target/hadoop-mesos-0.0.8.jar
+  command: mvn package
+  args:
+    chdir: /opt/src/mesos-hadoop/
+
+- name: create hadoop.sh file
+  template: src=hadoop.sh.j2 dest=/etc/profile.d/hadoop.sh
+
+- name: change permissions on hadoop.sh
+  command: chmod +x /etc/profile.d/hadoop.sh
+
+- name: download CDH5 distro
+  get_url: 
+    url: http://archive.cloudera.com/cdh5/cdh/5/{{ CDH5_HADOOP_DISTRO }}.tar.gz
+    dest: /opt/src/{{ CDH5_HADOOP_DISTRO }}.tar.gz
+
+- name: remove cdh5 folder
+  command: removes=/opt/src/{{ CDH5_HADOOP_DISTRO }} rm -rf /opt/src/{{ CDH5_HADOOP_DISTRO }}
+
+- name: unpack CDH5 distro
+  command: tar -zxvf {{ CDH5_HADOOP_DISTRO }}.tar.gz
+  args:
+    chdir: /opt/src/
+
+- name: copy hadoop-mesos over
+  command: cp /opt/src/mesos-hadoop/target/hadoop-mesos-0.0.8.jar /usr/lib/hadoop-0.20-mapreduce/lib/
+
+- name: copy hadoop-mesos into cdh5
+  command: cp /opt/src/mesos-hadoop/target/hadoop-mesos-0.0.8.jar /opt/src/{{ CDH5_HADOOP_DISTRO }}/share/hadoop/common/lib/
+
+- name: set symlinks
+  shell: "{{ item.cmd }} {{ item.dest }}" 
+  with_items:
+  - { cmd: "mv /opt/src/{{ CDH5_HADOOP_DISTRO }}/bin", dest: "/opt/src/{{ CDH5_HADOOP_DISTRO }}/bin-mapreduce2" }
+  - { cmd: "mv /opt/src/{{ CDH5_HADOOP_DISTRO }}/examples", dest: "/opt/src/{{ CDH5_HADOOP_DISTRO }}/examples-mapreduce2" }
+  - { cmd: "mv /opt/src/{{ CDH5_HADOOP_DISTRO }}/bin-mapreduce1", dest: "/opt/src/{{ CDH5_HADOOP_DISTRO }}/bin" }
+  - { cmd: "mv /opt/src/{{ CDH5_HADOOP_DISTRO }}/examples-mapreduce1", dest: "/opt/src/{{ CDH5_HADOOP_DISTRO }}/examples" }
+  - { cmd: "mv /opt/src/{{ CDH5_HADOOP_DISTRO }}/etc/hadoop", dest: "/opt/src/{{ CDH5_HADOOP_DISTRO }}/etc/hadoop-mapreduce2" }
+  - { cmd: "mv /opt/src/{{ CDH5_HADOOP_DISTRO }}/etc/hadoop-mapreduce1", dest: "/opt/src/{{ CDH5_HADOOP_DISTRO }}/etc/hadoop" }
+  - { cmd: "rm /opt/src/{{ CDH5_HADOOP_DISTRO }}/share/hadoop/mapreduce && ln -s /opt/src/{{ CDH5_HADOOP_DISTRO }}/share/hadoop/mapreduce1", dest: "/opt/src/{{ CDH5_HADOOP_DISTRO }}/share/hadoop/mapreduce" }
+  args:
+    chdir: /opt/src/
+
+- name: compress cdh5 archive
+  command: tar czf {{ CDH5_HADOOP_DISTRO }}-i.tar.gz {{ CDH5_HADOOP_DISTRO }}
+  args:
+    chdir: /opt/src/
+    creates: "{{ CDH5_HADOOP_DISTRO }}-i.tar.gz"
+
+- name: copyFromLocal hadoop distro into hdfs
+  shell: sudo -u hdfs hadoop fs -copyFromLocal /opt/src/{{ CDH5_HADOOP_DISTRO }}-i.tar.gz /{{ CDH5_HADOOP_DISTRO }}-i.tar.gz && touch /var/hadoop/.status/distro_tarball.created
+  args:
+    creates: /var/hadoop/.status/distro_tarball.created
+
+- name: copy hadoop-dameon.sh file template
+  template: 
+    src: hadoop-daemon.sh.j2
+    dest: /usr/lib/hadoop-0.20-mapreduce/bin/hadoop-daemon.sh
+
+- name: restart jobtracker service
+  service: name=hadoop-0.20-mapreduce-jobtracker state=restarted
+  tags:
+  - cdh5-jobtracker

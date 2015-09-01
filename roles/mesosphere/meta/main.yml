@@ -1,0 +1,3 @@
+---
+dependencies:
+  - { role: docker, when: mesos_mode is defined and (mesos_mode == "slave" or mesos_mode == "master-slave") }

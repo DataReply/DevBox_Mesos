@@ -1,0 +1,23 @@
+---
+
+# - include: haproxy.yml
+
+- name: install docker-py
+  pip: name=docker-py version=0.3.1
+# Build and prepare bamboo image
+
+
+- name: Build bamboo image
+  docker: 
+    image: "thefactory/bamboo"
+    command: "-bind=':8000'" 
+    name: "bamboo"
+    ports: "80:80,8000:8000"
+    env: BAMBOO_ZK_HOST={{zk_servers_noproto}} MARATHON_ENDPOINT={{ marathon_masters }}
+  tags:
+    - docker
+    - docker_build
+
+- name: Display IP address and port mappings for containers
+  debug: msg="{{inventory_hostname}}:{{item['HostConfig']}}"
+  with_items: docker_containers

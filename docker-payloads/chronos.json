@@ -1,0 +1,15 @@
+{
+    "id": "/chronos",
+    "instances": 1,
+    "cpus": 0.25,
+    "mem": 512,
+    "cmd": "/usr/local/bin/chronos --master zk://100.0.10.11:2181/mesos --zk_hosts zk://100.0.10.11:2181 --http_port $PORT0",
+    "container": {
+        "type": "DOCKER",
+        "docker": {
+            "image": "theclaymethod/chronos",
+            "network": "HOST"
+        }
+    },
+    "ports": [ 4444 ]
+}

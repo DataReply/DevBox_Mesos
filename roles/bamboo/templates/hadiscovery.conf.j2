@@ -1,0 +1,8 @@
+description "hadiscovery"
+
+start on runlevel [2345]
+respawn
+
+script
+  exec {{hadiscovery_bin_folder}}/bin/mesos_service_discovery --host {{hadiscovery_local_host}} --port {{hadiscovery_local_port}} --marathon_host {{hadiscovery_marathon_ip}} --marathon_port {{hadiscovery_marathon_port}}>> {{hadiscovery_log_file}} 2>&1
+end script

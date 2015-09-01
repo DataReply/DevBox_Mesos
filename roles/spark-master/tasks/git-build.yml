@@ -1,0 +1,17 @@
+- name: clone spark repo 
+  git: repo=https://github.com/apache/spark.git dest={{ spark_home }} version={{ version['spark'] }}
+
+- name: build spark repo
+  shell: chdir={{ spark_home }} SPARK_HADOOP_VERSION={{version.spark_hadoop}} sudo {{ spark_home }}/sbt/sbt -mem 512 clean assembly
+
+- name: make distribution
+  shell: /home/spark/spark/make-distribution.sh --hadoop {{version.spark_hadoop}} creates={{ spark_home }}/dist
+
+- name: rename spark distribution
+  shell: mv {{ spark_home }}/dist {{ spark_home }}/spark-{{version.spark_hadoop}} removes={{ spark_home }}/dist
+
+- name: create tarball for spark distribution
+  shell: tar czf {{ spark_home }}/spark-{{version.spark_hadoop}}
+
+- name: put spark tarball in hdfs
+  shell: hadoop fs -put {{ spark_home }}/spark-{{version.spark_hadoop}} /tmp

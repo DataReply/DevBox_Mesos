@@ -1,0 +1,31 @@
+---
+- name: Install the required packages
+  apt: pkg={{item}} state=installed
+  with_items:
+    - git
+    - golang
+
+- name: Create hadiscovery binary directory
+  file: state=directory path={{hadiscovery_bin_folder}}
+
+- name: Clone hadiscovery repo
+  git: repo=https://github.com/opencredo/mesos_service_discovery
+       dest={{hadiscovery_bin_folder}}
+       version={{hadiscovery_version}}
+
+- name: Install HAProxy configuration template
+  copy: src=../files/haproxy.cfg.tpl dest=/etc/haproxy/haproxy.cfg.tpl
+  notify: Restart hadiscovery
+
+- name: Build hadiscovery binary
+  command: ./build.sh creates={{hadiscovery_bin_folder}}/bin/mesos_service_discovery
+  notify: Restart hadiscovery
+  args:
+    chdir: "{{hadiscovery_bin_folder}}"
+
+- name: hadiscovery upstart script
+  template: src=hadiscovery.conf.j2 dest=/etc/init/hadiscovery.conf
+  notify: Restart hadiscovery
+
+- name: Restart hadiscovery
+  service: name=hadiscovery state=started enabled=yes

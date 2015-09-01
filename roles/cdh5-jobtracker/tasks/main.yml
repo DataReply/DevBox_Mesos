@@ -1,0 +1,12 @@
+---
+- name: install jobtracker pkgs
+  apt: name={{ item }} state=present force=yes
+  with_items:
+  - hadoop-0.20-mapreduce-jobtracker
+  tags:
+  - cdh5-jobtracker
+
+# - name: start jobtracker service
+#   service: name=hadoop-0.20-mapreduce-jobtracker state=started
+#   tags:
+#   - cdh5-jobtracker

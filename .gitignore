@@ -1,0 +1,10 @@
+.vagrant
+.dockercfg
+
+spark-1.1.0-bin-cdh4.tgz
+
+nonHA/spark-job-server.jar
+
+nonHA/hadoop-mesos-0.0.8.jar
+
+nonHA/hadoop-2.5.0-cdh5.2.0-i.tar.gz

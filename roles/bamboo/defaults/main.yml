@@ -1,0 +1,8 @@
+---
+hadiscovery_version: "a014e78fe28af11c96ad31dd38905f4584db62f6"
+hadiscovery_log_file: "/var/log/bamboo.log"
+bamboo_bin_folder: "/opt/src/bamboo/{{bamboo_version}}"
+hadiscovery_marathon_port: "8080"
+hadiscovery_marathon_ip: "localhost"
+hadiscovery_local_port: "8082"
+hadiscovery_local_host: "localhost"

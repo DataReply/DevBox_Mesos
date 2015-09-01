@@ -1,0 +1,35 @@
+---
+- name: create user group
+  group: name={{item}} state=present
+  tags:
+  - cdh5-base
+  - cdh5-hdfs
+  - cdh5-hdfs-user
+  with_items:
+  - hdfs
+  - hadoop
+
+- name: create hdfs user
+  user: name=hdfs groups=hdfs,hadoop createhome=yes state=present
+  tags:
+  - cdh5-base
+  - cdh5-hdfs
+  - cdh5-hdfs-user
+
+- name: create .ssh directory for hdfs user
+  file: path=/home/hdfs/.ssh state=directory owner=hdfs group=hdfs mode=0700
+  tags:
+  - cdh5-base
+  - cdh5-hdfs
+  - cdh5-hdfs-user
+
+# - name: copy the sshkeys for hdfs user
+#   copy: src=hdfs/sshkeys/{{ item }} dest=/home/clay/.ssh/{{ item }} owner=hdfs group=hdfs mode=0600
+#   with_items:
+#   - authorized_keys
+#   - id_rsa
+#   - id_rsa.pub
+#   tags:
+#   - cdh5-base
+#   - cdh5-hdfs
+#   - cdh5-hdfs-user
